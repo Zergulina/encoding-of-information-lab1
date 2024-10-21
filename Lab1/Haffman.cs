@@ -11,17 +11,29 @@ namespace Lab1
 {
     internal class Haffman
     {
+
         public static byte[] Encode(string str)
         {
             var symbolDictionary = CountSymbolsInText(str);
             var tree = new HaffmanTree(symbolDictionary);
-            
-            string encode = "";
-            foreach (var codePair in symbolDictionary) 
+
+            LinkedList<byte> encode = new LinkedList<byte>();
+            foreach (var codePair in symbolDictionary)
             {
-                encode += "@" + codePair.Key.ToString() + codePair.Value.ToString();
+                encode.AddLast((byte)('@' >> 8));
+                encode.AddLast((byte)'@');
+
+                encode.AddLast((byte)(codePair.Key >> 8));
+                encode.AddLast((byte)codePair.Key);
+
+                foreach (var c in codePair.Value.ToString())
+                {
+                    encode.AddLast((byte)(c >> 8));
+                    encode.AddLast((byte)c);
+                }
             }
-            encode += "|";
+            encode.AddLast((byte)('|' >> 8));
+            encode.AddLast((byte)'|');
             byte symbol = 0;
             int digitCounter = 0;
             int bitmask = 0b1000_0000;
@@ -33,19 +45,22 @@ namespace Lab1
                     bitmask = bitmask >> 1;
 
                     digitCounter++;
-                    if (digitCounter == 8) 
+                    if (digitCounter == 8)
                     {
                         bitmask = 0b1000_0000;
-                        encode += Convert.ToChar(symbol);
+                        encode.AddLast(symbol);
                         digitCounter = 0;
                         symbol = 0;
                     }
                 }
             }
-            encode += Convert.ToChar(symbol);
-            encode += Convert.ToString(digitCounter);
-            return encode;
+            if (digitCounter > 0) encode.AddLast(symbol);
+            char leftDigit = Convert.ToString(digitCounter, 8).Last();
+            encode.AddLast((byte)(leftDigit >> 8));
+            encode.AddLast((byte)leftDigit);
+            return encode.ToArray();
         }
+
 
         public static string Decode(byte[] str)
         {
@@ -54,8 +69,8 @@ namespace Lab1
             string decode = ""; 
             uint bitmask = 0b1000_0000;
             var currentCode = new List<bool>();
-            var backBias = int.Parse(str[str.Length - 1].ToString(), System.Globalization.NumberStyles.HexNumber);
-            for (var i = offset; i < str.Length - 2; i++) 
+            var backBias = ushort.Parse(((char)int.Parse(Convert.ToString(str[str.Length - 2], 2).PadLeft(8, '0') + Convert.ToString(str[str.Length - 1], 2).PadLeft(8, '0'), System.Globalization.NumberStyles.BinaryNumber)).ToString());
+            for (var i = offset; i < str.Length - 3; i++) 
             {
                 for (short digitCounter = 0; digitCounter < 8; digitCounter++)
                 {
@@ -76,7 +91,7 @@ namespace Lab1
             }
             for (short digitCounter = 0; digitCounter < backBias; digitCounter++)
             {
-                currentCode.Add((str[str.Length-2] & bitmask) == bitmask);
+                currentCode.Add((str[str.Length-3] & bitmask) == bitmask);
                 foreach (var code in tree.Codes)
                 {
                     if (currentCode.SequenceEqual(code.Value))
@@ -119,20 +134,20 @@ namespace Lab1
             {
                 prevCharStrBytes[0] = str[i - 3];
                 prevCharStrBytes[1] = str[i - 2];
-                prevCharStr = Encoding.Unicode.GetString(prevCharStrBytes)[0];
+                prevCharStr = (char)ushort.Parse(Convert.ToString(prevCharStrBytes[0], 2).PadLeft(8, '0') + Convert.ToString(prevCharStrBytes[1], 2).PadLeft(8, '0'), System.Globalization.NumberStyles.BinaryNumber);
 
                 currentCharStrBytes[0] = str[i - 1];
                 currentCharStrBytes[1] = str[i];
-                currentCharStr = Encoding.Unicode.GetString(currentCharStrBytes)[0];
+                currentCharStr = (char)ushort.Parse(Convert.ToString(currentCharStrBytes[0], 2).PadLeft(8, '0') + Convert.ToString(currentCharStrBytes[1], 2).PadLeft(8, '0'), System.Globalization.NumberStyles.BinaryNumber);
 
                 if (prevCharStr == '@' && currentCharStr == '@') currentChar = '@';
-                else if (currentCharStr == '@')
+                else if (currentCharStr == '@' && prevCharStr != '@')
                 {
                     symbolDictionary.Add(currentChar, ulong.Parse(number));
                     currentChar = ' ';
                     number = "";
                 }
-                else if (prevCharStr == '@') currentChar = currentCharStr;
+                else if (prevCharStr == '@' && currentChar!='@') currentChar = currentCharStr;
                 else if (currentCharStr == '|')
                 {
                     symbolDictionary.Add(currentChar, ulong.Parse(number));

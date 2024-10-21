@@ -41,9 +41,9 @@ namespace Lab1
                 buffer = "";
                 counter++;
             }
-
+            buffer += str[str.Length - 1];
             if (buffer.Length == 1) encode += startDictionary[buffer[0]] + "|";
-            else if (buffer.Length > 1) encode += bufferDictionary[buffer + str[str.Length - 1]] + dictionaryOffset + "|";
+            else encode += bufferDictionary[buffer + str[str.Length - 1]] + dictionaryOffset + "|";
 
             return encode;
         }
