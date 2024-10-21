@@ -42,7 +42,6 @@ namespace Lab1
                     }
                 }
             }
-            Console.WriteLine();
             encode += Convert.ToChar(symbol);
             encode += Convert.ToString(digitCounter);
             return encode;
@@ -130,6 +129,7 @@ namespace Lab1
                 else if (currentCharStr == '@')
                 {
                     symbolDictionary.Add(currentChar, ulong.Parse(number));
+                    currentChar = ' ';
                     number = "";
                 }
                 else if (prevCharStr == '@') currentChar = currentCharStr;
