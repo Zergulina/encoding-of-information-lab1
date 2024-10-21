@@ -11,30 +11,31 @@ namespace Lab1
 {
     internal class Haffman
     {
-        public static string Encode(String str)
+        public static byte[] Encode(string str)
         {
             var symbolDictionary = CountSymbolsInText(str);
             var tree = new HaffmanTree(symbolDictionary);
+            
             string encode = "";
             foreach (var codePair in symbolDictionary) 
             {
                 encode += "@" + codePair.Key.ToString() + codePair.Value.ToString();
             }
             encode += "|";
-            UInt16 symbol = 0;
+            byte symbol = 0;
             int digitCounter = 0;
-            uint bitmask = 0b1000_0000_0000_0000;
+            int bitmask = 0b1000_0000;
             foreach (char c in str)
             {
                 foreach (var bit in tree.Codes[c])
                 {
-                    if (bit) symbol |= (ushort)bitmask;
+                    if (bit) symbol |= (byte)bitmask;
                     bitmask = bitmask >> 1;
 
                     digitCounter++;
-                    if (digitCounter == 16) 
+                    if (digitCounter == 8) 
                     {
-                        bitmask = 0b1000_0000_0000_0000;
+                        bitmask = 0b1000_0000;
                         encode += Convert.ToChar(symbol);
                         digitCounter = 0;
                         symbol = 0;
@@ -43,23 +44,23 @@ namespace Lab1
             }
             Console.WriteLine();
             encode += Convert.ToChar(symbol);
-            encode += Convert.ToString(digitCounter, 16);
+            encode += Convert.ToString(digitCounter);
             return encode;
         }
 
-        public static string Decode(String str)
+        public static string Decode(byte[] str)
         {
             var (symbolDictionary, offset) = CountSymbolsInCode(str);
             var tree = new HaffmanTree(symbolDictionary);
             string decode = ""; 
-            uint bitmask = 0b1000_0000_0000_0000;
+            uint bitmask = 0b1000_0000;
             var currentCode = new List<bool>();
             var backBias = int.Parse(str[str.Length - 1].ToString(), System.Globalization.NumberStyles.HexNumber);
             for (var i = offset; i < str.Length - 2; i++) 
             {
-                for (short digitCounter = 0; digitCounter < 16; digitCounter++)
+                for (short digitCounter = 0; digitCounter < 8; digitCounter++)
                 {
-                    currentCode.Add(((UInt16)str[i] & bitmask) == bitmask);
+                    currentCode.Add((str[i] & bitmask) == bitmask);
                     foreach (var code in tree.Codes)
                     {
                         if (currentCode.SequenceEqual(code.Value))
@@ -72,11 +73,11 @@ namespace Lab1
                     bitmask = bitmask >> 1;
                 }
 
-                bitmask = 0b1000_0000_0000_0000;
+                bitmask = 0b1000_0000;
             }
             for (short digitCounter = 0; digitCounter < backBias; digitCounter++)
             {
-                currentCode.Add(((UInt16)str[str.Length-2] & bitmask) == bitmask);
+                currentCode.Add((str[str.Length-2] & bitmask) == bitmask);
                 foreach (var code in tree.Codes)
                 {
                     if (currentCode.SequenceEqual(code.Value))
@@ -105,21 +106,34 @@ namespace Lab1
             return symbolDictionary;
         }
 
-        public static (Dictionary<char, ulong>, int) CountSymbolsInCode(String str)
+        public static (Dictionary<char, ulong>, int) CountSymbolsInCode(byte[] str)
         {
             var symbolDictionary = new Dictionary<char, ulong>();
             char currentChar = ' ';
             string number = "";
             int offset;
-            for (int i = 1; true; i++)
+            byte[] prevCharStrBytes = new byte[2];
+            byte[] currentCharStrBytes = new byte[2];
+            char prevCharStr = ' ';
+            char currentCharStr = ' ';
+            for (int i = 3; true; i+=2)
             {
-                if (str[i] == '@')
+                prevCharStrBytes[0] = str[i - 3];
+                prevCharStrBytes[1] = str[i - 2];
+                prevCharStr = Encoding.Unicode.GetString(prevCharStrBytes)[0];
+
+                currentCharStrBytes[0] = str[i - 1];
+                currentCharStrBytes[1] = str[i];
+                currentCharStr = Encoding.Unicode.GetString(currentCharStrBytes)[0];
+
+                if (prevCharStr == '@' && currentCharStr == '@') currentChar = '@';
+                else if (currentCharStr == '@')
                 {
                     symbolDictionary.Add(currentChar, ulong.Parse(number));
                     number = "";
                 }
-                else if (str[i - 1] == '@') currentChar = str[i];
-                else if (str[i] == '|')
+                else if (prevCharStr == '@') currentChar = currentCharStr;
+                else if (currentCharStr == '|')
                 {
                     symbolDictionary.Add(currentChar, ulong.Parse(number));
                     offset = i + 1;
@@ -127,7 +141,7 @@ namespace Lab1
                 }
                 else
                 {
-                    number += str[i];
+                    number += currentCharStr;
                 }
             }
 
